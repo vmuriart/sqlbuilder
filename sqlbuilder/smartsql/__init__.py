@@ -646,6 +646,7 @@ class TableJoin(object):
         self._use_index = ExprList().join(", ")
         self._ignore_index = ExprList().join(", ")
         self._force_index = ExprList().join(", ")
+        self._group = False
 
     def inner_join(self, obj):
         return self.join("INNER JOIN", obj)
@@ -679,13 +680,15 @@ class TableJoin(object):
         return self
 
     def on(self, c):
-        if self._on is not None:
-            self = TableJoin(self)
+        if self._on is not None or isinstance(self._table, TableJoin):
+            self = self.group()
         self._on = parentheses_conditional(c)
         return self
 
     def group(self):
-        return TableJoin(self)
+        self = TableJoin(self)
+        self._group = True
+        return self
 
     def as_nested(self):
         return self.group()
@@ -724,7 +727,9 @@ class TableJoin(object):
             sql.append(self._left)
         if self._join_type:
             sql.append(Constant(self._join_type))
-        if isinstance(self._table, (TableJoin, QuerySet)):
+        if isinstance(self._table, QuerySet):
+            sql.append(Parentheses(self._table))
+        elif isinstance(self._table, TableJoin) and self._group:
             sql.append(Parentheses(self._table))
         else:
             sql.append(self._table)
