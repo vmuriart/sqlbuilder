@@ -263,228 +263,255 @@ class UndefType(object):
 Undef = UndefType()
 
 
-class Comparable(object):
+class OperatorRegistry(object):
 
-    __slots__ = ()
+    class OperatorNotFound(Error):
+        pass
+
+    def __init__(self):
+        self._data = {}
+
+    def register(self, operators, left_type, right_type, result_type):
+        for op in operators:
+            self._data[(op, left_type, right_type)] = result_type
+
+    def get(self, operator, left_type, right_type):
+        try:
+            return self._data[(operator, left_type, right_type)]
+        except KeyError:
+            # raise self.OperatorNotFound(operator, left_type, right_type)
+            return BaseType
+
+operator_registry = OperatorRegistry()
+
+
+class AbstractType(object):
+    __slots__ = ('_expr',)
+
+    def __init__(self, expr):
+        self._expr = expr  # weakref.ref(expr)
+
+
+class BaseType(AbstractType):
 
     def __add__(self, other):
-        return Add(self, other)
+        return Add(self._expr, other)
 
     def __radd__(self, other):
-        return Add(other, self)
+        return Add(other, self._expr)
 
     def __sub__(self, other):
-        return Sub(self, other)
+        return Sub(self._expr, other)
 
     def __rsub__(self, other):
-        return Sub(other, self)
+        return Sub(other, self._expr)
 
     def __mul__(self, other):
-        return Mul(self, other)
+        return Mul(self._expr, other)
 
     def __rmul__(self, other):
-        return Mul(other, self)
+        return Mul(other, self._expr)
 
     def __div__(self, other):
-        return Div(self, other)
+        return Div(self._expr, other)
 
     def __rdiv__(self, other):
-        return Div(other, self)
+        return Div(other, self._expr)
 
     def __truediv__(self, other):
-        return Div(self, other)
+        return Div(self._expr, other)
 
     def __rtruediv__(self, other):
-        return Div(other, self)
+        return Div(other, self._expr)
 
     def __floordiv__(self, other):
-        return Div(self, other)
+        return Div(self._expr, other)
 
     def __rfloordiv__(self, other):
-        return Div(other, self)
+        return Div(other, self._expr)
 
     def __and__(self, other):
-        return And(self, other)
+        return And(self._expr, other)
 
     def __rand__(self, other):
-        return And(other, self)
+        return And(other, self._expr)
 
     def __or__(self, other):
-        return Or(self, other)
+        return Or(self._expr, other)
 
     def __ror__(self, other):
-        return Or(other, self)
+        return Or(other, self._expr)
 
     def __gt__(self, other):
-        return Gt(self, other)
+        return Gt(self._expr, other)
 
     def __lt__(self, other):
-        return Lt(self, other)
+        return Lt(self._expr, other)
 
     def __ge__(self, other):
-        return Ge(self, other)
+        return Ge(self._expr, other)
 
     def __le__(self, other):
-        return Le(self, other)
+        return Le(self._expr, other)
 
     def __eq__(self, other):
         if other is None:
             return self.is_(None)
         if is_list(other):
             return self.in_(other)
-        return Eq(self, other)
+        return Eq(self._expr, other)
 
     def __ne__(self, other):
         if other is None:
             return self.is_not(None)
         if is_list(other):
             return self.not_in(other)
-        return Ne(self, other)
+        return Ne(self._expr, other)
 
     def __rshift__(self, other):
-        return RShift(self, other)
+        return RShift(self._expr, other)
 
     def __rrshift__(self, other):
-        return RShift(other, self)
+        return RShift(other, self._expr)
 
     def __lshift__(self, other):
-        return LShift(self, other)
+        return LShift(self._expr, other)
 
     def __rlshift__(self, other):
-        return LShift(other, self)
+        return LShift(other, self._expr)
 
     def is_(self, other):
-        return Is(self, other)
+        return Is(self._expr, other)
 
     def is_not(self, other):
-        return IsNot(self, other)
+        return IsNot(self._expr, other)
 
     def in_(self, other):
-        return In(self, other)
+        return In(self._expr, other)
 
     def not_in(self, other):
-        return NotIn(self, other)
+        return NotIn(self._expr, other)
 
     def like(self, other, escape=Undef):
-        return Like(self, other, escape)
+        return Like(self._expr, other, escape)
 
     def ilike(self, other, escape=Undef):
-        return ILike(self, other, escape)
+        return ILike(self._expr, other, escape)
 
     def rlike(self, other, escape=Undef):
-        return Like(other, self, escape)
+        return Like(other, self._expr, escape)
 
     def rilike(self, other, escape=Undef):
-        return ILike(other, self, escape)
+        return ILike(other, self._expr, escape)
 
     def startswith(self, other):
         pattern = EscapeForLike(other)
-        return Like(self, Concat(pattern, Value('%')), escape=pattern.escape)
+        return Like(self._expr, Concat(pattern, Value('%')), escape=pattern.escape)
 
     def istartswith(self, other):
         pattern = EscapeForLike(other)
-        return ILike(self, Concat(pattern, Value('%')), escape=pattern.escape)
+        return ILike(self._expr, Concat(pattern, Value('%')), escape=pattern.escape)
 
     def contains(self, other):  # TODO: ambiguous with "@>" operator of postgresql.
         pattern = EscapeForLike(other)
-        return Like(self, Concat(Value('%'), pattern, Value('%')), escape=pattern.escape)
+        return Like(self._expr, Concat(Value('%'), pattern, Value('%')), escape=pattern.escape)
 
     def icontains(self, other):
         pattern = EscapeForLike(other)
-        return ILike(self, Concat(Value('%'), pattern, Value('%')), escape=pattern.escape)
+        return ILike(self._expr, Concat(Value('%'), pattern, Value('%')), escape=pattern.escape)
 
     def endswith(self, other):
         pattern = EscapeForLike(other)
-        return Like(self, Concat(Value('%'), pattern), escape=pattern.escape)
+        return Like(self._expr, Concat(Value('%'), pattern), escape=pattern.escape)
 
     def iendswith(self, other):
         pattern = EscapeForLike(other)
-        return ILike(self, Concat(Value('%'), pattern), escape=pattern.escape)
+        return ILike(self._expr, Concat(Value('%'), pattern), escape=pattern.escape)
 
     def rstartswith(self, other):
-        pattern = EscapeForLike(self)
+        pattern = EscapeForLike(self._expr)
         return Like(other, Concat(pattern, Value('%')), escape=pattern.escape)
 
     def ristartswith(self, other):
-        pattern = EscapeForLike(self)
+        pattern = EscapeForLike(self._expr)
         return ILike(other, Concat(pattern, Value('%')), escape=pattern.escape)
 
     def rcontains(self, other):
-        pattern = EscapeForLike(self)
+        pattern = EscapeForLike(self._expr)
         return Like(other, Concat(Value('%'), pattern, Value('%')), escape=pattern.escape)
 
     def ricontains(self, other):
-        pattern = EscapeForLike(self)
+        pattern = EscapeForLike(self._expr)
         return ILike(other, Concat(Value('%'), pattern, Value('%')), escape=pattern.escape)
 
     def rendswith(self, other):
-        pattern = EscapeForLike(self)
+        pattern = EscapeForLike(self._expr)
         return Like(other, Concat(Value('%'), pattern), escape=pattern.escape)
 
     def riendswith(self, other):
-        pattern = EscapeForLike(self)
+        pattern = EscapeForLike(self._expr)
         return ILike(other, Concat(Value('%'), pattern), escape=pattern.escape)
 
     def __pos__(self):
-        return Pos(self)
+        return Pos(self._expr)
 
     def __neg__(self):
-        return Neg(self)
+        return Neg(self._expr)
 
     def __invert__(self):
-        return Not(self)
+        return Not(self._expr)
 
     def all(self):
-        return All(self)
+        return All(self._expr)
 
     def distinct(self):
-        return Distinct(self)
+        return Distinct(self._expr)
 
     def __pow__(self, other):
-        return func.Power(self, other)
+        return func.Power(self._expr, other)
 
     def __rpow__(self, other):
-        return func.Power(other, self)
+        return func.Power(other, self._expr)
 
     def __mod__(self, other):
-        return func.Mod(self, other)
+        return func.Mod(self._expr, other)
 
     def __rmod__(self, other):
-        return func.Mod(other, self)
+        return func.Mod(other, self._expr)
 
     def __abs__(self):
-        return func.Abs(self)
+        return func.Abs(self._expr)
 
     def count(self):
-        return func.Count(self)
+        return func.Count(self._expr)
 
     def as_(self, alias):
-        return Alias(alias, self)
+        return Alias(alias, self._expr)
 
     def between(self, start, end):
-        return Between(self, start, end)
+        return Between(self._expr, start, end)
 
     def concat(self, *args):
-        return Concat(self, *args)
+        return Concat(self._expr, *args)
 
     def concat_ws(self, sep, *args):
-        return Concat(self, *args).ws(sep)
+        return Concat(self._expr, *args).ws(sep)
 
     def op(self, op):
-        return lambda other: Binary(self, op, other)
+        return lambda other: Binary(self._expr, op, other)
 
     def rop(self, op):  # useless, can be P('lookingfor').op('=')(expr)
-        return lambda other: Binary(other, op, self)
+        return lambda other: Binary(other, op, self._expr)
 
     def asc(self):
-        return Asc(self)
+        return Asc(self._expr)
 
     def desc(self):
-        return Desc(self)
+        return Desc(self._expr)
 
     def __getitem__(self, key):
         """Returns self.between()"""
-        # Is it should return ArrayItem(key) or Subfield(self, key)?
+        # Is it should return ArrayItem(key) or Subfield(self._expr, key)?
         # Ambiguity with Query and ExprList!!!
         # Name conflict with Query.__getitem__(). Query can returns a single array.
         # We also may want to apply Between() or Eq() to subquery.
@@ -492,7 +519,7 @@ class Comparable(object):
             warn('__getitem__(slice(...))', 'between(start, end)')
             start = key.start or 0
             end = key.stop or sys.maxsize
-            return Between(self, start, end)
+            return Between(self._expr, start, end)
         else:
             warn('__getitem__(key)', '__eq__(key)')
             return self.__eq__(key)
@@ -500,11 +527,144 @@ class Comparable(object):
     __hash__ = object.__hash__
 
 
-class Expr(Comparable):
+class Operable(object):
+    __slots__ = ('_datatype', '__weakref__')
 
+    def __init__(self, datatype=None):
+        self._datatype = datatype or BaseType
+
+    def __getattr__(self, name):
+        """Use in derived classes:
+
+        try:
+            return Operable.__getattr__(self, key)
+        except AttributeError:
+            return derived_logic()
+        """
+        if name.startswith('__'):  # All allowed special method already defined.
+            raise AttributeError
+        delegate = self._datatype(self)
+        return getattr(delegate, name)
+
+    @staticmethod
+    def _typeof(obj):
+        if isinstance(obj, Operable):
+            return getattr(obj, '_datatype', BaseType)
+        return BaseType
+
+    __hash__ = object.__hash__
+
+    def __add__(self, other):
+        return self._datatype(self).__add__(other)
+
+    def __radd__(self, other):
+        return self._datatype(self).__radd__(other)
+
+    def __sub__(self, other):
+        return self._datatype(self).__sub__(other)
+
+    def __rsub__(self, other):
+        return self._datatype(self).__rsub__(other)
+
+    def __mul__(self, other):
+        return self._datatype(self).__mul__(other)
+
+    def __rmul__(self, other):
+        return self._datatype(self).__rmul__(other)
+
+    def __div__(self, other):
+        return self._datatype(self).__div__(other)
+
+    def __rdiv__(self, other):
+        return self._datatype(self).__rdiv__(other)
+
+    def __truediv__(self, other):
+        return self._datatype(self).__truediv__(other)
+
+    def __rtruediv__(self, other):
+        return self._datatype(self).__rtruediv__(other)
+
+    def __floordiv__(self, other):
+        return self._datatype(self).__floordiv__(other)
+
+    def __rfloordiv__(self, other):
+        return self._datatype(self).__rfloordiv__(other)
+
+    def __and__(self, other):
+        return self._datatype(self).__and__(other)
+
+    def __rand__(self, other):
+        return self._datatype(self).__rand__(other)
+
+    def __or__(self, other):
+        return self._datatype(self).__or__(other)
+
+    def __ror__(self, other):
+        return self._datatype(self).__ror__(other)
+
+    def __gt__(self, other):
+        return self._datatype(self).__gt__(other)
+
+    def __lt__(self, other):
+        return self._datatype(self).__lt__(other)
+
+    def __ge__(self, other):
+        return self._datatype(self).__ge__(other)
+
+    def __le__(self, other):
+        return self._datatype(self).__le__(other)
+
+    def __eq__(self, other):
+        return self._datatype(self).__eq__(other)
+
+    def __ne__(self, other):
+        return self._datatype(self).__ne__(other)
+
+    def __rshift__(self, other):
+        return self._datatype(self).__rshift__(other)
+
+    def __rrshift__(self, other):
+        return self._datatype(self).__rshift__(other)
+
+    def __lshift__(self, other):
+        return self._datatype(self).__lshift__(other)
+
+    def __rlshift__(self, other):
+        return self._datatype(self).__lshift__(other)
+
+    def __pos__(self):
+        return self._datatype(self).__pos__()
+
+    def __neg__(self):
+        return self._datatype(self).__neg__()
+
+    def __invert__(self):
+        return self._datatype(self).__invert__()
+
+    def __pow__(self, other):
+        return self._datatype(self).__pow__(other)
+
+    def __rpow__(self, other):
+        return self._datatype(self).__rpow__(other)
+
+    def __mod__(self, other):
+        return self._datatype(self).__mod__(other)
+
+    def __rmod__(self, other):
+        return self._datatype(self).__rmod__(other)
+
+    def __abs__(self):
+        return self._datatype(self).__abs__()
+
+    def __getitem__(self, key):
+        return self._datatype(self).__getitem__(key)
+
+
+class Expr(Operable):
     __slots__ = ('sql', 'params')
 
-    def __init__(self, sql, *params):
+    def __init__(self, sql, *params, **kwargs):
+        Operable.__init__(self, kwargs.get('datatype'))
         if params and is_list(params[0]):
             self.__init__(sql, *params[0])
             return
@@ -568,7 +728,8 @@ class Binary(Expr):
     __slots__ = ('left', 'right')
 
     def __init__(self, left, op, right):
-        Expr.__init__(self, op.upper())
+        datatype = operator_registry.get((self.__class__, op), self._typeof(left), self._typeof(right))
+        Expr.__init__(self, op.upper(), datatype=datatype)
         self.left = left
         self.right = right
 
@@ -590,6 +751,8 @@ class NamedBinary(Binary):
     def __init__(self, left, right):
         # Don't use multi-arguments form like And(*args)
         # Use reduce(operator.and_, args) or reduce(And, args) instead. SRP.
+        datatype = operator_registry.get(self.__class__, self._typeof(left), self._typeof(right))
+        Operable.__init__(self, datatype)
         self.left = left
         self.right = right
 
@@ -602,6 +765,8 @@ class NamedCompound(NamedBinary):
     def __init__(self, *exprs):
         self.left = reduce(self.__class__, exprs[:-1])
         self.right = exprs[-1]
+        datatype = operator_registry.get(self.__class__, self._typeof(self.left), self._typeof(self.right))
+        Operable.__init__(self, datatype)
 
 
 class Add(NamedCompound):
@@ -703,6 +868,7 @@ class EscapeForLike(Expr):
     )
 
     def __init__(self, expr):
+        Operable.__init__(self)
         self.expr = expr
 
 
@@ -722,6 +888,7 @@ class Like(NamedBinary):
         """
         :type escape: str | Undef
         """
+        Operable.__init__(self)
         self.left = left
         self.right = right
         if isinstance(right, EscapeForLike):
@@ -816,6 +983,7 @@ class FieldList(ExprList):
     def __init__(self, *args):
         # if args and is_list(args[0]):
         #     return self.__init__(*args[0])
+        Operable.__init__(self)
         self.sql, self.data = ", ", list(args)
 
 
@@ -847,6 +1015,7 @@ class Array(ExprList):  # TODO: use composition instead of inheritance, to solve
     __slots__ = ()
 
     def __init__(self, *args):
+        Operable.__init__(self)
         self.sql, self.data = ", ", list(args)
 
 
@@ -874,6 +1043,7 @@ class Param(Expr):
     __slots__ = ()
 
     def __init__(self, params):
+        Operable.__init__(self)
         self.params = params
 
 
@@ -890,6 +1060,7 @@ class Parentheses(Expr):
     __slots__ = ('expr', )
 
     def __init__(self, expr):
+        Operable.__init__(self)
         self.expr = expr
 
 
@@ -929,6 +1100,7 @@ class NamedPrefix(Prefix):
     __slots__ = ()
 
     def __init__(self, expr):
+        Operable.__init__(self)
         self.expr = expr
 
 
@@ -998,6 +1170,7 @@ class NamedPostfix(Postfix):
     __slots__ = ()
 
     def __init__(self, expr):
+        Operable.__init__(self)
         self.expr = expr
 
 
@@ -1005,6 +1178,7 @@ class OrderDirection(NamedPostfix):
     __slots__ = ()
 
     def __init__(self, expr):
+        Operable.__init__(self)
         if isinstance(expr, OrderDirection):
             expr = expr.expr
         self.expr = expr
@@ -1025,6 +1199,7 @@ class Between(Expr):
     __slots__ = ('expr', 'start', 'end')
 
     def __init__(self, expr, start, end):
+        Operable.__init__(self)
         self.expr, self.start, self.end = expr, start, end
 
 
@@ -1041,6 +1216,7 @@ class Case(Expr):
     __slots__ = ('cases', 'expr', 'default')
 
     def __init__(self, cases, expr=Undef, default=Undef):
+        Operable.__init__(self)
         self.cases = cases
         self.expr = expr
         self.default = default
@@ -1068,6 +1244,7 @@ class Callable(Expr):
     __slots__ = ('expr', 'args')
 
     def __init__(self, expr, *args):
+        Operable.__init__(self)
         self.expr = expr
         self.args = ExprList(*args).join(", ")
 
@@ -1084,6 +1261,7 @@ class NamedCallable(Callable):
     __slots__ = ()
 
     def __init__(self, *args):
+        Operable.__init__(self)
         self.args = ExprList(*args).join(", ")
 
 
@@ -1100,6 +1278,7 @@ class Cast(NamedCallable):
     sql = "CAST"
 
     def __init__(self, expr, type):
+        Operable.__init__(self)
         self.expr = expr
         self.type = type
 
@@ -1182,7 +1361,8 @@ class Field(MetaField("NewBase", (Expr,), {})):
     # It also can be a field of composite column.
     __slots__ = ('_name', '_prefix', '__cached__')
 
-    def __init__(self, name, prefix=None):
+    def __init__(self, name, prefix=None, datatype=None):
+        Operable.__init__(self, datatype)
         if isinstance(name, string_types):
             if name == '*':
                 name = Constant(name)
@@ -1210,6 +1390,7 @@ class Subfield(Expr):
     __slots__ = ('parent', 'name')
 
     def __init__(self, parent, name):
+        Operable.__init__(self)
         self.parent = parent
         if isinstance(name, string_types):
             name = Name(name)
@@ -1231,6 +1412,7 @@ class ArrayItem(Expr):
     __slots__ = ('array', 'key')
 
     def __init__(self, array, key):
+        Operable.__init__(self)
         self.array = array
         assert isinstance(key, slice)
         self.key = key
@@ -1647,14 +1829,17 @@ class Executable(object):
 
     def __getattr__(self, name):
         """Delegates unknown attributes to object of implementation."""
-        if hasattr(self.result, name):
-            attr = getattr(self.result, name)
-            if isinstance(attr, types.MethodType):
-                c = self.clone()
-                return getattr(c.result(c), name)
-            else:
-                return attr
-        raise AttributeError
+        try:
+            return super(Executable, self).__getattr__(name)
+        except AttributeError:
+            if hasattr(self.result, name):
+                attr = getattr(self.result, name)
+                if isinstance(attr, types.MethodType):
+                    c = self.clone()
+                    return getattr(c.result(c), name)
+                else:
+                    return attr
+            raise AttributeError
 
 
 @factory.register
@@ -1666,6 +1851,7 @@ class Select(Expr):
         :param tables: tables
         :type tables: Table, TableAlias, TableJoin or None
         """
+        Operable.__init__(self)
         self._distinct = ExprList().join(", ")
         self._fields = FieldList().join(", ")
         if tables is not None:
@@ -2344,6 +2530,20 @@ compile.set_precedence(30, Set, Union, Intersect, Except)
 compile.set_precedence(20, Select, Query, SelectCount, Raw, Insert, Update, Delete)
 compile.set_precedence(10, Expr)
 compile.set_precedence(None, All, Distinct)
+
+operator_registry.register(
+    (Add, Sub, Mul, Div, Gt, Lt, Ge, Le, And, Or, Eq, Ne, Is, IsNot, In, NotIn,
+     RShift, LShift, Like, ILike),
+    BaseType, BaseType, BaseType
+)
+operator_registry.register(
+    ((Binary, '+'), (Binary, '-'), (Binary, '*'), (Binary, '/'), (Binary, '>'),
+     (Binary, '<'), (Binary, '>='), (Binary, '<='), (Binary, 'AND'), (Binary, 'OR'),
+     (Binary, '=='), (Binary, '<>'), (Binary, 'IS'), (Binary, 'IS NOT'), (Binary, 'IN'),
+     (Binary, 'NOT IN'), (Binary, '>>'), (Binary, '<<'), (Binary, 'LIKE'),
+     (Binary, 'ILIKE')),
+    BaseType, BaseType, BaseType
+)
 
 A, C, E, P, TA, Q, QS = Alias, Condition, Expr, Placeholder, TableAlias, Query, Query
 func = const = ConstantSpace()
