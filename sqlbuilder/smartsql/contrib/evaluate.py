@@ -39,12 +39,12 @@ class SymbolBase(object):
 
     def nud(self, parser):
         raise SyntaxError(
-            "Syntax error (%r)." % self.name
+            "Syntax error ({0!r}).".format(self.name)
         )
 
     def led(self, left, parser):
         raise SyntaxError(
-            "Unknown operator (%r)." % self.name
+            "Unknown operator ({0!r}).".format(self.name)
         )
 
     def evaluate(self, context):
@@ -52,7 +52,7 @@ class SymbolBase(object):
 
     def __repr__(self):
         if self.name == '(NAME)' or self.name == '(LITERAL)':
-            return "(%s %s)" % (self.name[1:-1], self.value)
+            return "({0!s} {1!s})".format(self.name[1:-1], self.value)
         out = [repr(self.name), self.first, self.second, self.third]
         out = map(str, filter(None, out))
         return '(' + ' '.join(out) + ')'

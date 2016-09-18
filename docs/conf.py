@@ -46,7 +46,7 @@ def _linkcode_resolve(domain, info):
         return None
     if not info['module']:
         return None
-    return "https://bitbucket.org/emacsway/sqlbuilder/src/default/%s" % get_module_path(info['module'])
+    return "https://bitbucket.org/emacsway/sqlbuilder/src/default/{0!s}".format(get_module_path(info['module']))
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
